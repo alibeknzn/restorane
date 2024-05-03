@@ -5,9 +5,11 @@ This Python program simulates an online restaurant system with functionalities f
 Setup and Requirements
 Ensure you have Python installed on your machine.
 Copy the provided Python code into a file, for example, restaurant_system.py.
-Run the program using a Python interpreter. You can do this by navigating to the directory containing the file in the terminal and typing python restaurant_system.py.
+Run the program using a Python interpreter. You can do this by navigating to the directory containing the file in the terminal and typing python Online order system.py.
 
 Functionality
+
+The online restaurant system effectively addresses the chosen scenario by providing a feature-rich platform that enhances efficiency and effectiveness in restaurant operations. It streamlines processes, improves communication, and ultimately contributes to a better dining experience for customers and smoother operations for restaurant staff.
 
 Customer
 
