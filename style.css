@@ -292,3 +292,44 @@ body.dark-mode .view-switch .active {
     grid-template-columns: 1fr;
   }
 }
+
+/* Auth Note */
+.auth-note {
+  font-size: 14px;
+  color: #666;
+  margin-top: 16px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Debug Section */
+.debug-section {
+  margin-top: 30px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+.debug-section h3 {
+  margin-top: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.debug-section ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.debug-section li {
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.debug-section p {
+  font-style: italic;
+  margin-top: 16px;
+  color: #666;
+}

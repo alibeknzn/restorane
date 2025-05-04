@@ -1,20 +1,22 @@
 const CLIENT_ID =
   '238459408958-ug5nb6iam75o9pbemkca73iimlss78vf.apps.googleusercontent.com';
-const API_KEY = '';
+const API_KEY = 'AIzaSyAR4A_D28oNNn_tCl6_VWgbKnhw_NSkJzo';
 const DISCOVERY_DOCS = [
   'https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest',
   'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest',
 ];
 const SCOPES =
-  'https://www.googleapis.com/auth/tasks.readonly https://www.googleapis.com/auth/calendar.readonly';
+  'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar';
 
 let userProfile = null;
 
 function handleClientLoad() {
+  console.log('Loading GAPI client...');
   gapi.load('client:auth2', initClient);
 }
 
 function initClient() {
+  console.log('Initializing GAPI client...');
   gapi.client
     .init({
       apiKey: API_KEY,
@@ -23,36 +25,54 @@ function initClient() {
       scope: SCOPES,
     })
     .then(() => {
-      console.log('✅ GAPI initialized');
-      updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-      gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+      console.log('✅ GAPI initialized successfully');
+      const authInstance = gapi.auth2.getAuthInstance();
+      const isSignedIn = authInstance.isSignedIn.get();
+      console.log('User is signed in:', isSignedIn);
+
+      // Setup sign-in listener
+      authInstance.isSignedIn.listen(updateSigninStatus);
+
+      // Handle initial sign-in state
+      updateSigninStatus(isSignedIn);
     })
     .catch((error) => {
-      console.error('Error initializing GAPI client', error);
+      console.error('Error initializing GAPI client:', error);
+      alert('Failed to initialize Google API. Check console for details.');
     });
 }
 
 function updateSigninStatus(isSignedIn) {
+  console.log('Auth status changed. Signed in:', isSignedIn);
   const authSection = document.getElementById('auth-section');
   const contentSection = document.getElementById('content-section');
 
   if (isSignedIn) {
-    authSection.style.display = 'none';
-    contentSection.style.display = 'block';
+    try {
+      console.log('User is signed in, updating UI...');
+      authSection.style.display = 'none';
+      contentSection.style.display = 'block';
 
-    const user = gapi.auth2.getAuthInstance().currentUser.get();
-    const profile = user.getBasicProfile();
-    userProfile = {
-      id: profile.getId(),
-      name: profile.getName(),
-      email: profile.getEmail(),
-      imageUrl: profile.getImageUrl(),
-    };
+      const user = gapi.auth2.getAuthInstance().currentUser.get();
+      const profile = user.getBasicProfile();
+      userProfile = {
+        id: profile.getId(),
+        name: profile.getName(),
+        email: profile.getEmail(),
+        imageUrl: profile.getImageUrl(),
+      };
 
-    document.getElementById('user-email').textContent = userProfile.email;
+      console.log('User profile:', userProfile);
+      document.getElementById('user-email').textContent = userProfile.email;
 
-    loadTasks();
+      // Load tasks
+      console.log('Loading tasks...');
+      loadTasks();
+    } catch (error) {
+      console.error('Error in updateSigninStatus:', error);
+    }
   } else {
+    console.log('User is signed out, updating UI...');
     authSection.style.display = 'block';
     contentSection.style.display = 'none';
     userProfile = null;
@@ -60,10 +80,21 @@ function updateSigninStatus(isSignedIn) {
 }
 
 function handleAuthClick() {
-  gapi.auth2.getAuthInstance().signIn();
+  console.log('Auth button clicked, starting sign-in process...');
+  gapi.auth2
+    .getAuthInstance()
+    .signIn()
+    .then(() => {
+      console.log('Sign-in successful');
+    })
+    .catch((error) => {
+      console.error('Sign-in error:', error);
+      alert('Sign-in failed. Check console for details.');
+    });
 }
 
 function handleSignoutClick() {
+  console.log('Sign-out button clicked');
   gapi.auth2.getAuthInstance().signOut();
 }
 
@@ -168,25 +199,52 @@ function loadTasks() {
   const taskList = document.getElementById('task-list');
   taskList.innerHTML = '<li>Loading tasks...</li>';
 
+  console.log('Starting to load task lists...');
+
+  // Check if API is properly initialized
+  if (!gapi.client.tasks) {
+    console.error('Tasks API not loaded properly');
+    taskList.innerHTML =
+      '<li>Error: Google Tasks API not loaded. Check your API key and console for details.</li>';
+    return;
+  }
+
   gapi.client.tasks.tasklists
     .list()
     .then((response) => {
+      console.log('Task lists response:', response);
+
+      if (!response.result.items || response.result.items.length === 0) {
+        console.log('No task lists found');
+        taskList.innerHTML =
+          '<li>No task lists found. Create a task list in Google Tasks first.</li>';
+        return;
+      }
+
       const listId = response.result.items[0].id;
-      gapi.client.tasks.tasks
-        .list({ tasklist: listId })
-        .then((resp) => {
-          const tasks = resp.result.items || [];
-          taskList.innerHTML = '';
+      console.log('Using task list ID:', listId);
 
-          if (tasks.length === 0) {
-            taskList.innerHTML = '<li>No tasks found.</li>';
-            return;
-          }
+      return gapi.client.tasks.tasks.list({ tasklist: listId });
+    })
+    .then((resp) => {
+      if (!resp) return; // Handle if previous promise didn't return tasks
 
-          tasks.forEach((task) => {
-            const li = document.createElement('li');
-            li.className = 'task-item';
-            li.innerHTML = `
+      console.log('Tasks response:', resp);
+      const tasks = resp.result.items || [];
+      taskList.innerHTML = '';
+
+      if (tasks.length === 0) {
+        console.log('No tasks found in list');
+        taskList.innerHTML = '<li>No tasks found in this list.</li>';
+        return;
+      }
+
+      console.log(`Found ${tasks.length} tasks, rendering...`);
+      tasks.forEach((task) => {
+        console.log('Task:', task.title, 'Status:', task.status);
+        const li = document.createElement('li');
+        li.className = 'task-item';
+        li.innerHTML = `
           <span class="task-title ${
             task.status === 'completed' ? 'completed' : ''
           }">
@@ -198,19 +256,14 @@ function loadTasks() {
               : ''
           }
         `;
-            taskList.appendChild(li);
-          });
-        })
-        .catch((error) => {
-          console.error('Error loading tasks', error);
-          taskList.innerHTML =
-            '<li>Error loading tasks. Please try again.</li>';
-        });
+        taskList.appendChild(li);
+      });
     })
     .catch((error) => {
-      console.error('Error loading task lists', error);
-      taskList.innerHTML =
-        '<li>Error loading task lists. Please try again.</li>';
+      console.error('Error in loadTasks:', error);
+      taskList.innerHTML = `<li>Error loading tasks: ${
+        error.message || 'Unknown error'
+      }</li>`;
     });
 }
 

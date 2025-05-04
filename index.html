@@ -18,6 +18,10 @@
         >
           Sign In with Google
         </button>
+        <p class="auth-note">
+          Make sure you've set up your Google Cloud project correctly with Tasks
+          API enabled.
+        </p>
       </div>
 
       <div id="content-section" style="display: none">
@@ -48,8 +52,56 @@
           <ul id="task-list"></ul>
         </div>
       </div>
+
+      <div id="debug-info" class="debug-section" style="display: none">
+        <h3>Troubleshooting Information</h3>
+        <div id="debug-content"></div>
+      </div>
     </div>
 
     <script src="script.js"></script>
+    <script>
+      // Show debug panel for troubleshooting
+      function toggleDebugInfo() {
+        const debugSection = document.getElementById('debug-info');
+        debugSection.style.display =
+          debugSection.style.display === 'none' ? 'block' : 'none';
+      }
+
+      // Add keyboard shortcut (Ctrl+D) to show debug info
+      document.addEventListener('keydown', function (event) {
+        if (event.ctrlKey && event.key === 'd') {
+          event.preventDefault();
+          toggleDebugInfo();
+
+          // Display debug info
+          const debugContent = document.getElementById('debug-content');
+          const authInstance = gapi.auth2 && gapi.auth2.getAuthInstance();
+
+          let html = '<ul>';
+          html += `<li>API Key set: ${API_KEY ? 'Yes' : 'No'}</li>`;
+          html += `<li>Auth instance loaded: ${
+            authInstance ? 'Yes' : 'No'
+          }</li>`;
+          if (authInstance) {
+            html += `<li>Signed in: ${
+              authInstance.isSignedIn.get() ? 'Yes' : 'No'
+            }</li>`;
+          }
+          html += `<li>Tasks API loaded: ${
+            gapi.client.tasks ? 'Yes' : 'No'
+          }</li>`;
+          html += `<li>Calendar API loaded: ${
+            gapi.client.calendar ? 'Yes' : 'No'
+          }</li>`;
+          html += '</ul>';
+
+          html +=
+            '<p>Check your browser console (F12) for more detailed logs.</p>';
+
+          debugContent.innerHTML = html;
+        }
+      });
+    </script>
   </body>
 </html>
