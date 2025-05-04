@@ -94,6 +94,9 @@ function showLoginScreen() {
   document.getElementById('auth-section').style.display = 'block';
   document.getElementById('loading-section').style.display = 'none';
   document.getElementById('content-section').style.display = 'none';
+
+  // Add the login-specific container class to better showcase the background image
+  document.querySelector('.container').classList.add('container-login');
 }
 
 // Handle auth click - using the new Identity Services
@@ -219,6 +222,9 @@ function loadUserData() {
   if (userProfile && userProfile.email) {
     document.getElementById('user-email').textContent = userProfile.email;
   }
+
+  // Remove the login-specific container class
+  document.querySelector('.container').classList.remove('container-login');
 
   // Load calendar events first
   loadCalendarEvents()
@@ -639,6 +645,9 @@ function updateTaskStatus(taskListId, taskId, isCompleted) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Add the login container class on initial load
+  document.querySelector('.container').classList.add('container-login');
+
   // Load both the Google API libraries
   const script1 = document.createElement('script');
   script1.src = 'https://apis.google.com/js/api.js';
