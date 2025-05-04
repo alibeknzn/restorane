@@ -159,8 +159,13 @@ function updateUIForSignedIn() {
     document.getElementById('user-email').textContent = userProfile.email;
   }
 
-  // Load tasks
-  loadTasks();
+  // Load calendar events by default
+  loadCalendarEvents();
+
+  // Also preload tasks in the background
+  setTimeout(() => {
+    loadTasks();
+  }, 500);
 }
 
 // Update UI when user is signed out
@@ -210,20 +215,21 @@ function switchTab(tabName) {
 
 function loadCalendarEvents() {
   const eventsContainer = document.getElementById('events-list');
-  eventsContainer.innerHTML = '<p>Loading events...</p>';
+  eventsContainer.innerHTML =
+    '<p class="loading-message">Loading your calendar events...</p>';
 
   const today = new Date();
-  const tenDaysLater = new Date(today);
-  tenDaysLater.setDate(today.getDate() + 10);
+  const thirtyDaysLater = new Date(today);
+  thirtyDaysLater.setDate(today.getDate() + 30); // Show next 30 days instead of 10
 
   gapi.client.calendar.events
     .list({
       calendarId: 'primary',
       timeMin: today.toISOString(),
-      timeMax: tenDaysLater.toISOString(),
+      timeMax: thirtyDaysLater.toISOString(),
       showDeleted: false,
       singleEvents: true,
-      maxResults: 10,
+      maxResults: 20, // Increased from 10 to 20
       orderBy: 'startTime',
     })
     .then((response) => {
@@ -233,7 +239,7 @@ function loadCalendarEvents() {
     .catch((error) => {
       console.error('Error fetching calendar events', error);
       eventsContainer.innerHTML =
-        '<p>Error loading events. Please try again.</p>';
+        '<p class="error-message">Error loading events. Please try again or check console for details.</p>';
     });
 }
 
@@ -241,49 +247,98 @@ function displayEvents(events) {
   const eventsContainer = document.getElementById('events-list');
 
   if (!events || events.length === 0) {
-    eventsContainer.innerHTML = '<p>No upcoming events found.</p>';
+    eventsContainer.innerHTML =
+      '<p class="no-events">No upcoming events found in your calendar.</p>';
     return;
   }
 
-  let html = '<div class="events-grid">';
-
+  // Group events by date
+  const eventsByDate = {};
   events.forEach((event) => {
     const start = event.start.dateTime
       ? new Date(event.start.dateTime)
       : new Date(event.start.date);
-    const end = event.end.dateTime
-      ? new Date(event.end.dateTime)
-      : new Date(event.end.date);
+    const dateStr = start.toISOString().split('T')[0]; // YYYY-MM-DD format
 
-    const dateOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-    const timeOptions = { hour: '2-digit', minute: '2-digit' };
-
-    const dateStr = start.toLocaleDateString(undefined, dateOptions);
-    const startTimeStr = event.start.dateTime
-      ? start.toLocaleTimeString(undefined, timeOptions)
-      : 'All day';
-    const endTimeStr = event.end.dateTime
-      ? end.toLocaleTimeString(undefined, timeOptions)
-      : '';
-
-    const timeStr = startTimeStr + (endTimeStr ? ` - ${endTimeStr}` : '');
-
-    html += `
-      <div class="event-card">
-        <div class="event-date">${dateStr}</div>
-        <div class="event-time">${timeStr}</div>
-        <div class="event-title">${event.summary || 'Untitled Event'}</div>
-        ${
-          event.location
-            ? `<div class="event-location">📍 ${event.location}</div>`
-            : ''
-        }
-      </div>
-    `;
+    if (!eventsByDate[dateStr]) {
+      eventsByDate[dateStr] = [];
+    }
+    eventsByDate[dateStr].push(event);
   });
 
-  html += '</div>';
+  let html = '';
+
+  // Sort dates chronologically
+  const sortedDates = Object.keys(eventsByDate).sort();
+
+  sortedDates.forEach((dateStr) => {
+    const date = new Date(dateStr);
+    const dateOptions = { weekday: 'long', month: 'long', day: 'numeric' };
+    const formattedDate = date.toLocaleDateString(undefined, dateOptions);
+
+    // Add date header
+    html += `<div class="date-header">${formattedDate}</div>`;
+    html += '<div class="events-grid">';
+
+    // Add events for this date
+    eventsByDate[dateStr].forEach((event) => {
+      const start = event.start.dateTime
+        ? new Date(event.start.dateTime)
+        : new Date(event.start.date);
+      const end = event.end.dateTime
+        ? new Date(event.end.dateTime)
+        : new Date(event.start.date);
+
+      const timeOptions = { hour: '2-digit', minute: '2-digit' };
+
+      const startTimeStr = event.start.dateTime
+        ? start.toLocaleTimeString(undefined, timeOptions)
+        : 'All day';
+      const endTimeStr = event.end.dateTime
+        ? end.toLocaleTimeString(undefined, timeOptions)
+        : '';
+
+      const timeStr = startTimeStr + (endTimeStr ? ` - ${endTimeStr}` : '');
+
+      // Format calendar color
+      const calendarColor = event.colorId ? `color-${event.colorId}` : '';
+
+      html += `
+        <div class="event-card ${calendarColor}">
+          <div class="event-time">${timeStr}</div>
+          <div class="event-title">${event.summary || 'Untitled Event'}</div>
+          ${
+            event.location
+              ? `<div class="event-location">📍 ${event.location}</div>`
+              : ''
+          }
+          ${
+            event.description
+              ? `<div class="event-description">${truncateText(
+                  event.description,
+                  100,
+                )}</div>`
+              : ''
+          }
+          ${
+            event.hangoutLink
+              ? `<div class="event-meet"><a href="${event.hangoutLink}" target="_blank">Join Google Meet</a></div>`
+              : ''
+          }
+        </div>
+      `;
+    });
+
+    html += '</div>';
+  });
+
   eventsContainer.innerHTML = html;
+}
+
+// Helper function to truncate text
+function truncateText(text, maxLength) {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 }
 
 function loadTasks() {

@@ -203,7 +203,16 @@ body.dark-mode .view-switch .active {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
-  margin-top: 24px;
+  margin-bottom: 30px;
+}
+
+.date-header {
+  font-size: 18px;
+  font-weight: 600;
+  color: #202124;
+  margin: 24px 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e8eaed;
 }
 
 .event-card {
@@ -220,21 +229,51 @@ body.dark-mode .view-switch .active {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-.event-date {
-  font-size: 14px;
-  color: #5f6368;
-  margin-bottom: 4px;
+/* Calendar color coding */
+.event-card.color-1 {
+  border-left-color: #a4bdfc;
+}
+.event-card.color-2 {
+  border-left-color: #7ae7bf;
+}
+.event-card.color-3 {
+  border-left-color: #dbadff;
+}
+.event-card.color-4 {
+  border-left-color: #ff887c;
+}
+.event-card.color-5 {
+  border-left-color: #fbd75b;
+}
+.event-card.color-6 {
+  border-left-color: #ffb878;
+}
+.event-card.color-7 {
+  border-left-color: #46d6db;
+}
+.event-card.color-8 {
+  border-left-color: #e1e1e1;
+}
+.event-card.color-9 {
+  border-left-color: #5484ed;
+}
+.event-card.color-10 {
+  border-left-color: #51b749;
+}
+.event-card.color-11 {
+  border-left-color: #dc2127;
 }
 
 .event-time {
-  font-size: 12px;
+  font-size: 14px;
   color: #5f6368;
   margin-bottom: 12px;
+  font-weight: 500;
 }
 
 .event-title {
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
   color: #202124;
   margin-bottom: 8px;
 }
@@ -242,6 +281,51 @@ body.dark-mode .view-switch .active {
 .event-location {
   font-size: 13px;
   color: #5f6368;
+  margin-bottom: 8px;
+}
+
+.event-description {
+  font-size: 13px;
+  color: #5f6368;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.event-meet {
+  margin-top: 12px;
+}
+
+.event-meet a {
+  display: inline-block;
+  background-color: #1a73e8;
+  color: white;
+  padding: 6px 12px;
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: background-color 0.2s;
+}
+
+.event-meet a:hover {
+  background-color: #0d66d0;
+}
+
+.loading-message {
+  text-align: center;
+  color: #5f6368;
+  padding: 20px;
+}
+
+.error-message {
+  text-align: center;
+  color: #d93025;
+  padding: 20px;
+}
+
+.no-events {
+  text-align: center;
+  color: #5f6368;
+  padding: 20px;
 }
 
 /* Tasks Display */

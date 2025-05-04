@@ -62,12 +62,10 @@
       <div id="content-section" style="display: none">
         <div class="tab-navbar">
           <div class="tabs">
-            <button class="tab" onclick="switchTab('calendar')">
+            <button class="tab active" onclick="switchTab('calendar')">
               Calendar Events
             </button>
-            <button class="tab active" onclick="switchTab('tasks')">
-              Tasks
-            </button>
+            <button class="tab" onclick="switchTab('tasks')">Tasks</button>
           </div>
           <div class="profile-section">
             <span id="user-email"></span>
@@ -77,12 +75,12 @@
           </div>
         </div>
 
-        <div id="calendar-tab" class="tab-content" style="display: none">
+        <div id="calendar-tab" class="tab-content">
           <h2>Upcoming Events</h2>
           <div id="events-list"></div>
         </div>
 
-        <div id="tasks-tab" class="tab-content">
+        <div id="tasks-tab" class="tab-content" style="display: none">
           <h2>Tasks</h2>
           <ul id="task-list"></ul>
         </div>
