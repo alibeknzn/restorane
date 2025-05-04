@@ -294,6 +294,13 @@ function loadCalendarEvents() {
   const thirtyDaysLater = new Date(today);
   thirtyDaysLater.setDate(today.getDate() + 30);
 
+  console.log(
+    'Fetching calendar events from',
+    today.toISOString(),
+    'to',
+    thirtyDaysLater.toISOString(),
+  );
+
   return gapi.client.calendar.events
     .list({
       calendarId: 'primary',
@@ -305,14 +312,23 @@ function loadCalendarEvents() {
       orderBy: 'startTime',
     })
     .then((response) => {
+      console.log('Calendar API response:', response);
       const events = response.result.items;
+      console.log('Found', events ? events.length : 0, 'calendar events');
+
+      if (events && events.length > 0) {
+        console.log('First event:', events[0]);
+      }
+
       displayEvents(events);
       return events;
     })
     .catch((error) => {
       console.error('Error fetching calendar events', error);
       eventsContainer.innerHTML =
-        '<p class="error-message">Error loading events. Please try again or check console for details.</p>';
+        '<p class="error-message">Error loading events: ' +
+        (error.result?.error?.message || error.message || 'Unknown error') +
+        '</p>';
       throw error;
     });
 }
@@ -430,6 +446,9 @@ function loadTasks() {
     return Promise.reject(new Error('Tasks API not loaded'));
   }
 
+  // Store the active task list ID globally
+  let activeTaskListId;
+
   return gapi.client.tasks.tasklists
     .list()
     .then((response) => {
@@ -442,10 +461,10 @@ function loadTasks() {
         return null;
       }
 
-      const listId = response.result.items[0].id;
-      console.log('Using task list ID:', listId);
+      activeTaskListId = response.result.items[0].id;
+      console.log('Using task list ID:', activeTaskListId);
 
-      return gapi.client.tasks.tasks.list({ tasklist: listId });
+      return gapi.client.tasks.tasks.list({ tasklist: activeTaskListId });
     })
     .then((resp) => {
       if (!resp) return; // Handle if previous promise didn't return tasks
@@ -456,27 +475,67 @@ function loadTasks() {
 
       if (tasks.length === 0) {
         console.log('No tasks found in list');
-        taskList.innerHTML = '<li>No tasks found in this list.</li>';
+
+        // Add a button to add a new task
+        const noTasksElement = document.createElement('div');
+        noTasksElement.innerHTML = `
+          <p>No tasks found in this list.</p>
+          <button id="add-task-btn" class="add-task-btn">Add a new task</button>
+        `;
+        taskList.appendChild(noTasksElement);
+
+        // Add event listener for the add task button
+        document
+          .getElementById('add-task-btn')
+          .addEventListener('click', () => {
+            addNewTask(activeTaskListId);
+          });
+
         return;
       }
+
+      // Add a button to add a new task at the top
+      const addTaskBtn = document.createElement('div');
+      addTaskBtn.className = 'add-task-container';
+      addTaskBtn.innerHTML = `<button id="add-task-btn" class="add-task-btn">Add a new task</button>`;
+      taskList.appendChild(addTaskBtn);
+
+      // Add event listener for the add task button
+      document.getElementById('add-task-btn').addEventListener('click', () => {
+        addNewTask(activeTaskListId);
+      });
 
       console.log(`Found ${tasks.length} tasks, rendering...`);
       tasks.forEach((task) => {
         console.log('Task:', task.title, 'Status:', task.status);
         const li = document.createElement('li');
         li.className = 'task-item';
+        li.dataset.taskId = task.id;
+        li.dataset.taskListId = activeTaskListId;
+
         li.innerHTML = `
+          <input type="checkbox" class="task-checkbox" ${
+            task.status === 'completed' ? 'checked' : ''
+          }>
           <span class="task-title ${
             task.status === 'completed' ? 'completed' : ''
           }">
             ${task.title || 'Untitled Task'}
           </span>
-          ${
-            task.status === 'completed'
-              ? '<span class="task-status">✅</span>'
-              : ''
-          }
         `;
+
+        // Add event listener to handle checkbox clicks
+        li.querySelector('.task-checkbox').addEventListener(
+          'click',
+          function (event) {
+            const isCompleted = this.checked;
+            const taskId = li.dataset.taskId;
+            const taskListId = li.dataset.taskListId;
+
+            updateTaskStatus(taskListId, taskId, isCompleted);
+          },
+        );
+
         taskList.appendChild(li);
       });
 
@@ -488,6 +547,94 @@ function loadTasks() {
         error.message || 'Unknown error'
       }</li>`;
       throw error;
+    });
+}
+
+// Function to add a new task
+function addNewTask(taskListId) {
+  const taskTitle = prompt('Enter task title:');
+  if (!taskTitle) return; // User cancelled
+
+  console.log('Adding new task:', taskTitle);
+
+  // Show loading indicator
+  const taskList = document.getElementById('task-list');
+  const loadingLi = document.createElement('li');
+  loadingLi.textContent = 'Adding task...';
+  loadingLi.className = 'task-item loading';
+  taskList.appendChild(loadingLi);
+
+  // Call the API to add the task
+  gapi.client.tasks.tasks
+    .insert({
+      tasklist: taskListId,
+      resource: {
+        title: taskTitle,
+        status: 'needsAction',
+      },
+    })
+    .then((response) => {
+      console.log('Task added successfully:', response);
+      // Reload the tasks list
+      loadTasks();
+    })
+    .catch((error) => {
+      console.error('Error adding task:', error);
+      alert(
+        'Failed to add task: ' +
+          (error.result?.error?.message || error.message || 'Unknown error'),
+      );
+      // Remove the loading indicator
+      taskList.removeChild(loadingLi);
+    });
+}
+
+// Function to update task status
+function updateTaskStatus(taskListId, taskId, isCompleted) {
+  console.log(
+    'Updating task status:',
+    taskId,
+    isCompleted ? 'completed' : 'needsAction',
+  );
+
+  // Update UI immediately for better user experience
+  const taskElement = document.querySelector(`li[data-task-id="${taskId}"]`);
+  const titleElement = taskElement.querySelector('.task-title');
+
+  if (isCompleted) {
+    titleElement.classList.add('completed');
+  } else {
+    titleElement.classList.remove('completed');
+  }
+
+  // Call the API to update the task
+  gapi.client.tasks.tasks
+    .patch({
+      tasklist: taskListId,
+      task: taskId,
+      resource: {
+        id: taskId,
+        status: isCompleted ? 'completed' : 'needsAction',
+      },
+    })
+    .then((response) => {
+      console.log('Task status updated successfully:', response);
+    })
+    .catch((error) => {
+      console.error('Error updating task status:', error);
+      alert(
+        'Failed to update task: ' +
+          (error.result?.error?.message || error.message || 'Unknown error'),
+      );
+
+      // Revert UI changes on error
+      if (isCompleted) {
+        titleElement.classList.remove('completed');
+        taskElement.querySelector('.task-checkbox').checked = false;
+      } else {
+        titleElement.classList.add('completed');
+        taskElement.querySelector('.task-checkbox').checked = true;
+      }
     });
 }
 
