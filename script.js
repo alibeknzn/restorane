@@ -9,93 +9,140 @@ const SCOPES =
   'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar';
 
 let userProfile = null;
+let tokenClient;
 
+// Called when the page loads
 function handleClientLoad() {
   console.log('Loading GAPI client...');
-  gapi.load('client:auth2', initClient);
+  gapi.load('client', initializeGapiClient);
 }
 
-function initClient() {
+// Initialize the GAPI client
+async function initializeGapiClient() {
   console.log('Initializing GAPI client...');
-  gapi.client
-    .init({
+  try {
+    await gapi.client.init({
       apiKey: API_KEY,
-      clientId: CLIENT_ID,
       discoveryDocs: DISCOVERY_DOCS,
-      scope: SCOPES,
-    })
-    .then(() => {
-      console.log('✅ GAPI initialized successfully');
-      const authInstance = gapi.auth2.getAuthInstance();
-      const isSignedIn = authInstance.isSignedIn.get();
-      console.log('User is signed in:', isSignedIn);
-
-      // Setup sign-in listener
-      authInstance.isSignedIn.listen(updateSigninStatus);
-
-      // Handle initial sign-in state
-      updateSigninStatus(isSignedIn);
-    })
-    .catch((error) => {
-      console.error('Error initializing GAPI client:', error);
-      alert('Failed to initialize Google API. Check console for details.');
     });
-}
+    console.log('GAPI client initialized');
 
-function updateSigninStatus(isSignedIn) {
-  console.log('Auth status changed. Signed in:', isSignedIn);
-  const authSection = document.getElementById('auth-section');
-  const contentSection = document.getElementById('content-section');
-
-  if (isSignedIn) {
-    try {
-      console.log('User is signed in, updating UI...');
-      authSection.style.display = 'none';
-      contentSection.style.display = 'block';
-
-      const user = gapi.auth2.getAuthInstance().currentUser.get();
-      const profile = user.getBasicProfile();
-      userProfile = {
-        id: profile.getId(),
-        name: profile.getName(),
-        email: profile.getEmail(),
-        imageUrl: profile.getImageUrl(),
-      };
-
-      console.log('User profile:', userProfile);
-      document.getElementById('user-email').textContent = userProfile.email;
-
-      // Load tasks
-      console.log('Loading tasks...');
-      loadTasks();
-    } catch (error) {
-      console.error('Error in updateSigninStatus:', error);
-    }
-  } else {
-    console.log('User is signed out, updating UI...');
-    authSection.style.display = 'block';
-    contentSection.style.display = 'none';
-    userProfile = null;
+    // Initialize the token client
+    initializeTokenClient();
+  } catch (error) {
+    console.error('Error initializing GAPI client:', error);
+    alert('Failed to initialize Google API. Check console for details.');
   }
 }
 
-function handleAuthClick() {
-  console.log('Auth button clicked, starting sign-in process...');
-  gapi.auth2
-    .getAuthInstance()
-    .signIn()
-    .then(() => {
-      console.log('Sign-in successful');
-    })
-    .catch((error) => {
-      console.error('Sign-in error:', error);
-      alert('Sign-in failed. Check console for details.');
-    });
+// Initialize the Google Identity Services token client
+function initializeTokenClient() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (tokenResponse) => {
+      if (tokenResponse && tokenResponse.access_token) {
+        console.log('Access token received');
+        // Access token received, user is authenticated
+        updateUIForSignedIn();
+      }
+    },
+    error_callback: (error) => {
+      console.error('Token client error:', error);
+      updateUIForSignedOut();
+    },
+  });
 }
 
+// Handle credential response from Google Identity Services
+function handleCredentialResponse(response) {
+  if (response.credential) {
+    console.log('Credential received:', response);
+
+    // Decode the JWT token to get user profile info
+    const decodedToken = parseJwt(response.credential);
+    if (decodedToken) {
+      userProfile = {
+        id: decodedToken.sub,
+        name: decodedToken.name,
+        email: decodedToken.email,
+        imageUrl: decodedToken.picture,
+      };
+
+      console.log('User profile:', userProfile);
+
+      // Request access token for API access
+      requestAccessToken();
+    }
+  } else {
+    console.error('No credential received');
+  }
+}
+
+// Parse the JWT token
+function parseJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(function (c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join(''),
+    );
+
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error('Error parsing JWT token:', e);
+    return null;
+  }
+}
+
+// Request access token with appropriate scopes
+function requestAccessToken() {
+  console.log('Requesting access token...');
+  tokenClient.requestAccessToken();
+}
+
+// Update UI when user is signed in
+function updateUIForSignedIn() {
+  console.log('Updating UI for signed in user');
+  document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('content-section').style.display = 'block';
+
+  // Display user email if available
+  if (userProfile && userProfile.email) {
+    document.getElementById('user-email').textContent = userProfile.email;
+  }
+
+  // Load tasks
+  loadTasks();
+}
+
+// Update UI when user is signed out
+function updateUIForSignedOut() {
+  console.log('Updating UI for signed out user');
+  document.getElementById('auth-section').style.display = 'block';
+  document.getElementById('content-section').style.display = 'none';
+  userProfile = null;
+}
+
+// Sign out the user
 function handleSignoutClick() {
   console.log('Sign-out button clicked');
-  gapi.auth2.getAuthInstance().signOut();
+
+  // Revoke the token
+  if (gapi.client.getToken()) {
+    google.accounts.oauth2.revoke(gapi.client.getToken().access_token, () => {
+      console.log('Token revoked');
+      gapi.client.setToken('');
+      updateUIForSignedOut();
+    });
+  } else {
+    updateUIForSignedOut();
+  }
 }
 
 function switchTab(tabName) {

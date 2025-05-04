@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <title>Google Calendar & Tasks</title>
     <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -11,16 +12,25 @@
       <h1>Google Calendar & Tasks</h1>
 
       <div id="auth-section">
-        <button
-          id="authorize-button"
-          onclick="handleAuthClick()"
-          class="btn-primary"
-        >
-          Sign In with Google
-        </button>
+        <div
+          id="g_id_onload"
+          data-client_id="238459408958-ug5nb6iam75o9pbemkca73iimlss78vf.apps.googleusercontent.com"
+          data-context="signin"
+          data-callback="handleCredentialResponse"
+          data-auto_prompt="false"
+        ></div>
+        <div
+          class="g_id_signin"
+          data-type="standard"
+          data-size="large"
+          data-theme="outline"
+          data-text="sign_in_with"
+          data-shape="rectangular"
+          data-logo_alignment="left"
+        ></div>
         <p class="auth-note">
-          Make sure you've set up your Google Cloud project correctly with Tasks
-          API enabled.
+          Sign in with your Google account to access Tasks. This app requires
+          Google Tasks API access.
         </p>
       </div>
 
@@ -76,23 +86,17 @@
 
           // Display debug info
           const debugContent = document.getElementById('debug-content');
-          const authInstance = gapi.auth2 && gapi.auth2.getAuthInstance();
-
           let html = '<ul>';
           html += `<li>API Key set: ${API_KEY ? 'Yes' : 'No'}</li>`;
-          html += `<li>Auth instance loaded: ${
-            authInstance ? 'Yes' : 'No'
-          }</li>`;
-          if (authInstance) {
-            html += `<li>Signed in: ${
-              authInstance.isSignedIn.get() ? 'Yes' : 'No'
-            }</li>`;
+          html += `<li>User signed in: ${userProfile ? 'Yes' : 'No'}</li>`;
+          if (userProfile) {
+            html += `<li>User email: ${userProfile.email}</li>`;
           }
           html += `<li>Tasks API loaded: ${
-            gapi.client.tasks ? 'Yes' : 'No'
+            gapi.client && gapi.client.tasks ? 'Yes' : 'No'
           }</li>`;
           html += `<li>Calendar API loaded: ${
-            gapi.client.calendar ? 'Yes' : 'No'
+            gapi.client && gapi.client.calendar ? 'Yes' : 'No'
           }</li>`;
           html += '</ul>';
 
