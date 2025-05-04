@@ -68,42 +68,5 @@
     </div>
 
     <script src="script.js"></script>
-    <script>
-      // Show debug panel for troubleshooting
-      function toggleDebugInfo() {
-        const debugSection = document.getElementById('debug-info');
-        debugSection.style.display =
-          debugSection.style.display === 'none' ? 'block' : 'none';
-      }
-
-      // Add keyboard shortcut (Ctrl+D) to show debug info
-      document.addEventListener('keydown', function (event) {
-        if (event.ctrlKey && event.key === 'd') {
-          event.preventDefault();
-          toggleDebugInfo();
-
-          // Display debug info
-          const debugContent = document.getElementById('debug-content');
-          let html = '<ul>';
-          html += `<li>API Key set: ${API_KEY ? 'Yes' : 'No'}</li>`;
-          html += `<li>User signed in: ${userProfile ? 'Yes' : 'No'}</li>`;
-          if (userProfile) {
-            html += `<li>User email: ${userProfile.email}</li>`;
-          }
-          html += `<li>Tasks API loaded: ${
-            gapi.client && gapi.client.tasks ? 'Yes' : 'No'
-          }</li>`;
-          html += `<li>Calendar API loaded: ${
-            gapi.client && gapi.client.calendar ? 'Yes' : 'No'
-          }</li>`;
-          html += '</ul>';
-
-          html +=
-            '<p>Check your browser console (F12) for more detailed logs.</p>';
-
-          debugContent.innerHTML = html;
-        }
-      });
-    </script>
   </body>
 </html>
