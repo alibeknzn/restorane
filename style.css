@@ -348,3 +348,36 @@ body.dark-mode .view-switch .active {
   display: flex;
   justify-content: center;
 }
+
+/* Consent section */
+.consent-container {
+  max-width: 500px;
+  margin: 40px auto;
+  text-align: center;
+  padding: 30px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.consent-container h2 {
+  margin-top: 0;
+  color: #202124;
+}
+
+.user-info {
+  margin: 20px 0;
+  font-size: 16px;
+  color: #5f6368;
+}
+
+.consent-note {
+  font-size: 13px;
+  color: #5f6368;
+  margin-top: 16px;
+  font-style: italic;
+}
+
+#grant-access-button {
+  margin-top: 10px;
+}

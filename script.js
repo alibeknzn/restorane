@@ -10,6 +10,7 @@ const SCOPES =
 
 let userProfile = null;
 let tokenClient;
+let hasAccessToken = false;
 
 // Called when the page loads
 function handleClientLoad() {
@@ -42,14 +43,31 @@ function initializeTokenClient() {
     scope: SCOPES,
     callback: (tokenResponse) => {
       if (tokenResponse && tokenResponse.access_token) {
-        console.log('Access token received');
+        console.log('Access token received successfully');
+        hasAccessToken = true;
         // Access token received, user is authenticated
         updateUIForSignedIn();
+      } else {
+        console.log('No access token received in response');
+        showConsentScreen();
       }
     },
     error_callback: (error) => {
       console.error('Token client error:', error);
-      updateUIForSignedOut();
+
+      // Check if this is a popup blocked error
+      if (
+        error.type === 'popup_failed_to_open' ||
+        error.message?.includes('popup')
+      ) {
+        alert(
+          'Popup was blocked. Please allow popups for this site and try again.',
+        );
+      } else {
+        alert('Failed to get access token: ' + error.message);
+      }
+
+      showConsentScreen();
     },
   });
 }
@@ -71,11 +89,12 @@ function handleCredentialResponse(response) {
 
       console.log('User profile:', userProfile);
 
-      // Request access token for API access
-      requestAccessToken();
+      // Show consent screen instead of automatically requesting token
+      showConsentScreen();
     }
   } else {
     console.error('No credential received');
+    document.getElementById('auth-section').style.display = 'block';
   }
 }
 
@@ -100,16 +119,39 @@ function parseJwt(token) {
   }
 }
 
+// Show the consent screen after initial sign-in
+function showConsentScreen() {
+  console.log('Showing consent screen');
+  document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('content-section').style.display = 'none';
+
+  const consentSection = document.getElementById('consent-section');
+  consentSection.style.display = 'block';
+
+  if (userProfile && userProfile.email) {
+    document.getElementById('consent-user-email').textContent =
+      'Signed in as: ' + userProfile.email;
+  }
+}
+
 // Request access token with appropriate scopes
+// This is now called by the button click directly
 function requestAccessToken() {
-  console.log('Requesting access token...');
-  tokenClient.requestAccessToken();
+  console.log('Requesting access token via button click...');
+
+  // This is now triggered directly by user interaction (button click)
+  // which should prevent popup blocking
+  tokenClient.requestAccessToken({
+    prompt: '', // empty string for a single prompt
+    // Use 'consent' to force the consent screen every time
+  });
 }
 
 // Update UI when user is signed in
 function updateUIForSignedIn() {
   console.log('Updating UI for signed in user');
   document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('consent-section').style.display = 'none';
   document.getElementById('content-section').style.display = 'block';
 
   // Display user email if available
@@ -125,8 +167,10 @@ function updateUIForSignedIn() {
 function updateUIForSignedOut() {
   console.log('Updating UI for signed out user');
   document.getElementById('auth-section').style.display = 'block';
+  document.getElementById('consent-section').style.display = 'none';
   document.getElementById('content-section').style.display = 'none';
   userProfile = null;
+  hasAccessToken = false;
 }
 
 // Sign out the user

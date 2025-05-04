@@ -34,6 +34,31 @@
         </p>
       </div>
 
+      <!-- Add consent section for API access -->
+      <div id="consent-section" style="display: none">
+        <div class="consent-container">
+          <h2>One more step needed</h2>
+          <p>
+            To access your Google Tasks data, we need your permission to access
+            the Google Tasks API.
+          </p>
+          <div class="user-info">
+            <span id="consent-user-email"></span>
+          </div>
+          <button
+            id="grant-access-button"
+            onclick="requestAccessToken()"
+            class="btn-primary"
+          >
+            Grant Access to Google Tasks
+          </button>
+          <p class="consent-note">
+            This will open a popup window from Google. Please ensure popups are
+            allowed in your browser.
+          </p>
+        </div>
+      </div>
+
       <div id="content-section" style="display: none">
         <div class="tab-navbar">
           <div class="tabs">
