@@ -8,124 +8,207 @@ const DISCOVERY_DOCS = [
 const SCOPES =
   'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar';
 
+// Storage keys
+const STORAGE_KEY_TOKEN = 'google_token';
+const STORAGE_KEY_PROFILE = 'user_profile';
+const STORAGE_KEY_EXPIRY = 'token_expiry';
+
 let userProfile = null;
 let isAuthorized = false;
 
 // Called when the page loads
 function handleClientLoad() {
   console.log('Loading GAPI client...');
-  gapi.load('client:auth2', initClient);
-}
 
-// Initialize the GAPI client
-async function initClient() {
-  console.log('Initializing GAPI client...');
-  try {
-    await gapi.client.init({
-      apiKey: API_KEY,
-      clientId: CLIENT_ID,
-      discoveryDocs: DISCOVERY_DOCS,
-      scope: SCOPES,
-    });
+  // Try to load profile from localStorage
+  const savedProfile = localStorage.getItem(STORAGE_KEY_PROFILE);
+  const tokenExpiry = localStorage.getItem(STORAGE_KEY_EXPIRY);
 
-    console.log('GAPI client initialized');
+  // Check if we have a valid token that hasn't expired
+  if (
+    savedProfile &&
+    tokenExpiry &&
+    new Date().getTime() < parseInt(tokenExpiry, 10)
+  ) {
+    userProfile = JSON.parse(savedProfile);
+    console.log('Restored profile from localStorage:', userProfile);
 
-    // Listen for sign-in state changes
-    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-
-    // Handle the initial sign-in state
-    updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-  } catch (error) {
-    console.error('Error initializing GAPI client:', error);
-    showError(
-      'Failed to initialize Google API. Please check your connection and try again.',
-    );
-  }
-}
-
-// Update UI based on auth status
-function updateSigninStatus(isSignedIn) {
-  console.log('Auth status changed. Signed in:', isSignedIn);
-  isAuthorized = isSignedIn;
-
-  if (isSignedIn) {
-    // Hide auth section and show loading
-    document.getElementById('auth-section').style.display = 'none';
-    document.getElementById('loading-section').style.display = 'block';
-
-    // Get user info
-    const user = gapi.auth2.getAuthInstance().currentUser.get();
-    const profile = user.getBasicProfile();
-    userProfile = {
-      id: profile.getId(),
-      name: profile.getName(),
-      email: profile.getEmail(),
-      imageUrl: profile.getImageUrl(),
-    };
-
-    console.log('User profile:', userProfile);
-
-    // Show content after retrieving data
-    loadUserData();
+    // Initialize API client and proceed with stored credentials
+    initializeApiClient(true);
   } else {
-    // User is not signed in, show auth section
-    document.getElementById('auth-section').style.display = 'block';
-    document.getElementById('loading-section').style.display = 'none';
-    document.getElementById('content-section').style.display = 'none';
+    // Clear any stale data
+    clearStoredAuth();
+
+    // Initialize API client without auto-loading data
+    initializeApiClient(false);
   }
 }
 
-// Handle auth click - streamlined single step auth
-function handleAuthClick() {
-  if (!gapi.auth2) {
-    console.error('Auth2 not initialized');
-    showError(
-      'Authentication service not initialized. Please refresh the page and try again.',
-    );
-    return;
-  }
+// Initialize just the API client without auth
+async function initializeApiClient(autoLoadData) {
+  try {
+    await gapi.load('client', async () => {
+      try {
+        await gapi.client.init({
+          apiKey: API_KEY,
+          discoveryDocs: DISCOVERY_DOCS,
+        });
+        console.log('GAPI client initialized');
 
+        // If we have stored credentials, load user data
+        if (autoLoadData && userProfile) {
+          // Set the token from localStorage
+          const token = localStorage.getItem(STORAGE_KEY_TOKEN);
+          if (token) {
+            gapi.client.setToken({ access_token: token });
+
+            // Show loading and load user data
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('loading-section').style.display = 'block';
+            loadUserData();
+          } else {
+            showLoginScreen();
+          }
+        } else {
+          showLoginScreen();
+        }
+      } catch (error) {
+        console.error('Error initializing GAPI client:', error);
+        showError(
+          'Failed to initialize Google API. Please check your connection and try again.',
+        );
+        showLoginScreen();
+      }
+    });
+  } catch (error) {
+    console.error('Error loading GAPI client:', error);
+    showError(
+      'Failed to load Google API. Please refresh the page and try again.',
+    );
+    showLoginScreen();
+  }
+}
+
+// Show the login screen
+function showLoginScreen() {
+  document.getElementById('auth-section').style.display = 'block';
+  document.getElementById('loading-section').style.display = 'none';
+  document.getElementById('content-section').style.display = 'none';
+}
+
+// Handle auth click - using the new Identity Services
+function handleAuthClick() {
   console.log('Auth button clicked, starting sign-in process...');
 
   // Show loading indicator while authenticating
   document.getElementById('auth-section').style.display = 'none';
   document.getElementById('loading-section').style.display = 'block';
 
-  gapi.auth2
-    .getAuthInstance()
-    .signIn()
-    .then(() => {
-      console.log('Sign-in successful');
-      // updateSigninStatus listener will handle the UI update
+  // Use newer Identity Services library
+  google.accounts.oauth2
+    .initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      prompt: 'consent',
+      callback: handleAuthResponse,
     })
-    .catch((error) => {
-      console.error('Sign-in error:', error);
-      document.getElementById('auth-section').style.display = 'block';
-      document.getElementById('loading-section').style.display = 'none';
+    .requestAccessToken();
+}
 
-      if (error.error === 'popup_blocked' || error.details?.includes('popup')) {
-        showError(
-          'Popup was blocked. Please allow popups for this site and try again.',
-        );
-      } else {
-        showError('Sign-in failed. Please try again later.');
-      }
+// Handle the auth response
+function handleAuthResponse(response) {
+  console.log('Auth response received:', response);
+
+  if (response.error) {
+    console.error('Error in auth response:', response.error);
+    showError('Authentication failed: ' + response.error);
+    showLoginScreen();
+    return;
+  }
+
+  if (response.access_token) {
+    // Store the token
+    const tokenExpiryTime = new Date().getTime() + response.expires_in * 1000;
+    localStorage.setItem(STORAGE_KEY_TOKEN, response.access_token);
+    localStorage.setItem(STORAGE_KEY_EXPIRY, tokenExpiryTime.toString());
+
+    // Set the token for API calls
+    gapi.client.setToken({ access_token: response.access_token });
+
+    // Get user profile
+    fetchUserProfile()
+      .then(() => {
+        loadUserData();
+      })
+      .catch((error) => {
+        console.error('Error fetching user profile:', error);
+        showError('Failed to fetch user profile. Please try again.');
+        showLoginScreen();
+      });
+  } else {
+    showError('No access token received. Please try again.');
+    showLoginScreen();
+  }
+}
+
+// Fetch the user profile using the people API
+async function fetchUserProfile() {
+  try {
+    // Load the people API if not already loaded
+    if (!gapi.client.people) {
+      await gapi.client.load(
+        'https://www.googleapis.com/discovery/v1/apis/people/v1/rest',
+      );
+    }
+
+    // Get user information
+    const response = await gapi.client.people.people.get({
+      resourceName: 'people/me',
+      personFields: 'names,emailAddresses,photos',
     });
+
+    // Extract profile info
+    const data = response.result;
+    userProfile = {
+      id: data.resourceName.split('/')[1],
+      name: data.names?.[0]?.displayName || 'User',
+      email: data.emailAddresses?.[0]?.value || 'No email',
+      imageUrl: data.photos?.[0]?.url || '',
+    };
+
+    console.log('User profile:', userProfile);
+
+    // Store profile in localStorage
+    localStorage.setItem(STORAGE_KEY_PROFILE, JSON.stringify(userProfile));
+
+    return userProfile;
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    throw new Error('Failed to fetch user profile');
+  }
 }
 
 // Handle sign-out click
 function handleSignoutClick() {
   console.log('Sign-out button clicked');
-  gapi.auth2
-    .getAuthInstance()
-    .signOut()
-    .then(() => {
-      console.log('Sign-out successful');
-      // The updateSigninStatus listener will handle UI updates
-    })
-    .catch((error) => {
-      console.error('Sign-out error:', error);
-    });
+
+  // Clear stored auth data
+  clearStoredAuth();
+
+  // Reset API client token
+  gapi.client.setToken(null);
+
+  // Show login screen
+  showLoginScreen();
+}
+
+// Clear stored auth data
+function clearStoredAuth() {
+  localStorage.removeItem(STORAGE_KEY_TOKEN);
+  localStorage.removeItem(STORAGE_KEY_PROFILE);
+  localStorage.removeItem(STORAGE_KEY_EXPIRY);
+  userProfile = null;
+  isAuthorized = false;
 }
 
 // Load user data after authentication
@@ -149,9 +232,25 @@ function loadUserData() {
     })
     .catch((error) => {
       console.error('Error loading calendar events:', error);
-      document.getElementById('loading-section').style.display = 'none';
-      document.getElementById('content-section').style.display = 'block';
-      // Still show content but with error message in events section
+
+      // Check if this is an auth error
+      if (
+        error.status === 401 ||
+        error.status === 403 ||
+        (error.result &&
+          error.result.error &&
+          (error.result.error.status === 'UNAUTHENTICATED' ||
+            error.result.error.status === 'PERMISSION_DENIED'))
+      ) {
+        console.log('Authentication error detected, clearing stored auth');
+        clearStoredAuth();
+        showError('Your session has expired. Please sign in again.');
+        showLoginScreen();
+      } else {
+        // For other errors, still show content with error message
+        document.getElementById('loading-section').style.display = 'none';
+        document.getElementById('content-section').style.display = 'block';
+      }
     });
 }
 
@@ -391,8 +490,9 @@ function loadTasks() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const script = document.createElement('script');
-  script.src = 'https://apis.google.com/js/api.js';
-  script.onload = handleClientLoad;
-  document.body.appendChild(script);
+  // Load both the Google API libraries
+  const script1 = document.createElement('script');
+  script1.src = 'https://apis.google.com/js/api.js';
+  script1.onload = handleClientLoad;
+  document.body.appendChild(script1);
 });
