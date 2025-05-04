@@ -151,29 +151,31 @@ function handleAuthResponse(response) {
   }
 }
 
-// Fetch the user profile using the people API
+// Fetch the user profile using the UserInfo endpoint instead of People API
 async function fetchUserProfile() {
   try {
-    // Load the people API if not already loaded
-    if (!gapi.client.people) {
-      await gapi.client.load(
-        'https://www.googleapis.com/discovery/v1/apis/people/v1/rest',
-      );
+    // Use the UserInfo endpoint instead of People API
+    const response = await fetch(
+      'https://www.googleapis.com/oauth2/v3/userinfo',
+      {
+        headers: {
+          Authorization: 'Bearer ' + localStorage.getItem(STORAGE_KEY_TOKEN),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`UserInfo request failed with status ${response.status}`);
     }
 
-    // Get user information
-    const response = await gapi.client.people.people.get({
-      resourceName: 'people/me',
-      personFields: 'names,emailAddresses,photos',
-    });
+    const data = await response.json();
 
     // Extract profile info
-    const data = response.result;
     userProfile = {
-      id: data.resourceName.split('/')[1],
-      name: data.names?.[0]?.displayName || 'User',
-      email: data.emailAddresses?.[0]?.value || 'No email',
-      imageUrl: data.photos?.[0]?.url || '',
+      id: data.sub,
+      name: data.name || 'User',
+      email: data.email || 'No email',
+      imageUrl: data.picture || '',
     };
 
     console.log('User profile:', userProfile);
