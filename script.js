@@ -9,189 +9,155 @@ const SCOPES =
   'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar';
 
 let userProfile = null;
-let tokenClient;
-let hasAccessToken = false;
+let isAuthorized = false;
 
 // Called when the page loads
 function handleClientLoad() {
   console.log('Loading GAPI client...');
-  gapi.load('client', initializeGapiClient);
+  gapi.load('client:auth2', initClient);
 }
 
 // Initialize the GAPI client
-async function initializeGapiClient() {
+async function initClient() {
   console.log('Initializing GAPI client...');
   try {
     await gapi.client.init({
       apiKey: API_KEY,
+      clientId: CLIENT_ID,
       discoveryDocs: DISCOVERY_DOCS,
+      scope: SCOPES,
     });
+
     console.log('GAPI client initialized');
 
-    // Initialize the token client
-    initializeTokenClient();
+    // Listen for sign-in state changes
+    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+    // Handle the initial sign-in state
+    updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
   } catch (error) {
     console.error('Error initializing GAPI client:', error);
-    alert('Failed to initialize Google API. Check console for details.');
+    showError(
+      'Failed to initialize Google API. Please check your connection and try again.',
+    );
   }
 }
 
-// Initialize the Google Identity Services token client
-function initializeTokenClient() {
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: (tokenResponse) => {
-      if (tokenResponse && tokenResponse.access_token) {
-        console.log('Access token received successfully');
-        hasAccessToken = true;
-        // Access token received, user is authenticated
-        updateUIForSignedIn();
-      } else {
-        console.log('No access token received in response');
-        showConsentScreen();
-      }
-    },
-    error_callback: (error) => {
-      console.error('Token client error:', error);
+// Update UI based on auth status
+function updateSigninStatus(isSignedIn) {
+  console.log('Auth status changed. Signed in:', isSignedIn);
+  isAuthorized = isSignedIn;
 
-      // Check if this is a popup blocked error
-      if (
-        error.type === 'popup_failed_to_open' ||
-        error.message?.includes('popup')
-      ) {
-        alert(
+  if (isSignedIn) {
+    // Hide auth section and show loading
+    document.getElementById('auth-section').style.display = 'none';
+    document.getElementById('loading-section').style.display = 'block';
+
+    // Get user info
+    const user = gapi.auth2.getAuthInstance().currentUser.get();
+    const profile = user.getBasicProfile();
+    userProfile = {
+      id: profile.getId(),
+      name: profile.getName(),
+      email: profile.getEmail(),
+      imageUrl: profile.getImageUrl(),
+    };
+
+    console.log('User profile:', userProfile);
+
+    // Show content after retrieving data
+    loadUserData();
+  } else {
+    // User is not signed in, show auth section
+    document.getElementById('auth-section').style.display = 'block';
+    document.getElementById('loading-section').style.display = 'none';
+    document.getElementById('content-section').style.display = 'none';
+  }
+}
+
+// Handle auth click - streamlined single step auth
+function handleAuthClick() {
+  if (!gapi.auth2) {
+    console.error('Auth2 not initialized');
+    showError(
+      'Authentication service not initialized. Please refresh the page and try again.',
+    );
+    return;
+  }
+
+  console.log('Auth button clicked, starting sign-in process...');
+
+  // Show loading indicator while authenticating
+  document.getElementById('auth-section').style.display = 'none';
+  document.getElementById('loading-section').style.display = 'block';
+
+  gapi.auth2
+    .getAuthInstance()
+    .signIn()
+    .then(() => {
+      console.log('Sign-in successful');
+      // updateSigninStatus listener will handle the UI update
+    })
+    .catch((error) => {
+      console.error('Sign-in error:', error);
+      document.getElementById('auth-section').style.display = 'block';
+      document.getElementById('loading-section').style.display = 'none';
+
+      if (error.error === 'popup_blocked' || error.details?.includes('popup')) {
+        showError(
           'Popup was blocked. Please allow popups for this site and try again.',
         );
       } else {
-        alert('Failed to get access token: ' + error.message);
+        showError('Sign-in failed. Please try again later.');
       }
-
-      showConsentScreen();
-    },
-  });
+    });
 }
 
-// Handle credential response from Google Identity Services
-function handleCredentialResponse(response) {
-  if (response.credential) {
-    console.log('Credential received:', response);
-
-    // Decode the JWT token to get user profile info
-    const decodedToken = parseJwt(response.credential);
-    if (decodedToken) {
-      userProfile = {
-        id: decodedToken.sub,
-        name: decodedToken.name,
-        email: decodedToken.email,
-        imageUrl: decodedToken.picture,
-      };
-
-      console.log('User profile:', userProfile);
-
-      // Show consent screen instead of automatically requesting token
-      showConsentScreen();
-    }
-  } else {
-    console.error('No credential received');
-    document.getElementById('auth-section').style.display = 'block';
-  }
+// Handle sign-out click
+function handleSignoutClick() {
+  console.log('Sign-out button clicked');
+  gapi.auth2
+    .getAuthInstance()
+    .signOut()
+    .then(() => {
+      console.log('Sign-out successful');
+      // The updateSigninStatus listener will handle UI updates
+    })
+    .catch((error) => {
+      console.error('Sign-out error:', error);
+    });
 }
 
-// Parse the JWT token
-function parseJwt(token) {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map(function (c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        })
-        .join(''),
-    );
-
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    console.error('Error parsing JWT token:', e);
-    return null;
-  }
-}
-
-// Show the consent screen after initial sign-in
-function showConsentScreen() {
-  console.log('Showing consent screen');
-  document.getElementById('auth-section').style.display = 'none';
-  document.getElementById('content-section').style.display = 'none';
-
-  const consentSection = document.getElementById('consent-section');
-  consentSection.style.display = 'block';
-
-  if (userProfile && userProfile.email) {
-    document.getElementById('consent-user-email').textContent =
-      'Signed in as: ' + userProfile.email;
-  }
-}
-
-// Request access token with appropriate scopes
-// This is now called by the button click directly
-function requestAccessToken() {
-  console.log('Requesting access token via button click...');
-
-  // This is now triggered directly by user interaction (button click)
-  // which should prevent popup blocking
-  tokenClient.requestAccessToken({
-    prompt: '', // empty string for a single prompt
-    // Use 'consent' to force the consent screen every time
-  });
-}
-
-// Update UI when user is signed in
-function updateUIForSignedIn() {
-  console.log('Updating UI for signed in user');
-  document.getElementById('auth-section').style.display = 'none';
-  document.getElementById('consent-section').style.display = 'none';
-  document.getElementById('content-section').style.display = 'block';
-
-  // Display user email if available
+// Load user data after authentication
+function loadUserData() {
+  // Display user email
   if (userProfile && userProfile.email) {
     document.getElementById('user-email').textContent = userProfile.email;
   }
 
-  // Load calendar events by default
-  loadCalendarEvents();
+  // Load calendar events first
+  loadCalendarEvents()
+    .then(() => {
+      // Show content section after data is loaded
+      document.getElementById('loading-section').style.display = 'none';
+      document.getElementById('content-section').style.display = 'block';
 
-  // Also preload tasks in the background
-  setTimeout(() => {
-    loadTasks();
-  }, 500);
-}
-
-// Update UI when user is signed out
-function updateUIForSignedOut() {
-  console.log('Updating UI for signed out user');
-  document.getElementById('auth-section').style.display = 'block';
-  document.getElementById('consent-section').style.display = 'none';
-  document.getElementById('content-section').style.display = 'none';
-  userProfile = null;
-  hasAccessToken = false;
-}
-
-// Sign out the user
-function handleSignoutClick() {
-  console.log('Sign-out button clicked');
-
-  // Revoke the token
-  if (gapi.client.getToken()) {
-    google.accounts.oauth2.revoke(gapi.client.getToken().access_token, () => {
-      console.log('Token revoked');
-      gapi.client.setToken('');
-      updateUIForSignedOut();
+      // Also load tasks in background
+      loadTasks().catch((error) => {
+        console.error('Error loading tasks:', error);
+      });
+    })
+    .catch((error) => {
+      console.error('Error loading calendar events:', error);
+      document.getElementById('loading-section').style.display = 'none';
+      document.getElementById('content-section').style.display = 'block';
+      // Still show content but with error message in events section
     });
-  } else {
-    updateUIForSignedOut();
-  }
+}
+
+// Show error message to user
+function showError(message) {
+  alert(message);
 }
 
 function switchTab(tabName) {
@@ -206,13 +172,18 @@ function switchTab(tabName) {
 
   if (tabName === 'calendar') {
     document.getElementById('calendar-tab').style.display = 'block';
-    loadCalendarEvents();
+    loadCalendarEvents().catch((error) => {
+      console.error('Error reloading calendar events:', error);
+    });
   } else if (tabName === 'tasks') {
     document.getElementById('tasks-tab').style.display = 'block';
-    loadTasks();
+    loadTasks().catch((error) => {
+      console.error('Error reloading tasks:', error);
+    });
   }
 }
 
+// Load calendar events and return promise
 function loadCalendarEvents() {
   const eventsContainer = document.getElementById('events-list');
   eventsContainer.innerHTML =
@@ -220,26 +191,28 @@ function loadCalendarEvents() {
 
   const today = new Date();
   const thirtyDaysLater = new Date(today);
-  thirtyDaysLater.setDate(today.getDate() + 30); // Show next 30 days instead of 10
+  thirtyDaysLater.setDate(today.getDate() + 30);
 
-  gapi.client.calendar.events
+  return gapi.client.calendar.events
     .list({
       calendarId: 'primary',
       timeMin: today.toISOString(),
       timeMax: thirtyDaysLater.toISOString(),
       showDeleted: false,
       singleEvents: true,
-      maxResults: 20, // Increased from 10 to 20
+      maxResults: 20,
       orderBy: 'startTime',
     })
     .then((response) => {
       const events = response.result.items;
       displayEvents(events);
+      return events;
     })
     .catch((error) => {
       console.error('Error fetching calendar events', error);
       eventsContainer.innerHTML =
         '<p class="error-message">Error loading events. Please try again or check console for details.</p>';
+      throw error;
     });
 }
 
@@ -341,6 +314,7 @@ function truncateText(text, maxLength) {
   return text.substring(0, maxLength) + '...';
 }
 
+// Load tasks and return promise
 function loadTasks() {
   const taskList = document.getElementById('task-list');
   taskList.innerHTML = '<li>Loading tasks...</li>';
@@ -352,10 +326,10 @@ function loadTasks() {
     console.error('Tasks API not loaded properly');
     taskList.innerHTML =
       '<li>Error: Google Tasks API not loaded. Check your API key and console for details.</li>';
-    return;
+    return Promise.reject(new Error('Tasks API not loaded'));
   }
 
-  gapi.client.tasks.tasklists
+  return gapi.client.tasks.tasklists
     .list()
     .then((response) => {
       console.log('Task lists response:', response);
@@ -364,7 +338,7 @@ function loadTasks() {
         console.log('No task lists found');
         taskList.innerHTML =
           '<li>No task lists found. Create a task list in Google Tasks first.</li>';
-        return;
+        return null;
       }
 
       const listId = response.result.items[0].id;
@@ -404,12 +378,15 @@ function loadTasks() {
         `;
         taskList.appendChild(li);
       });
+
+      return tasks;
     })
     .catch((error) => {
       console.error('Error in loadTasks:', error);
       taskList.innerHTML = `<li>Error loading tasks: ${
         error.message || 'Unknown error'
       }</li>`;
+      throw error;
     });
 }
 

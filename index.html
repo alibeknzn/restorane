@@ -12,50 +12,25 @@
       <h1>Google Calendar & Tasks</h1>
 
       <div id="auth-section">
-        <div
-          id="g_id_onload"
-          data-client_id="238459408958-ug5nb6iam75o9pbemkca73iimlss78vf.apps.googleusercontent.com"
-          data-context="signin"
-          data-callback="handleCredentialResponse"
-          data-auto_prompt="false"
-        ></div>
-        <div
-          class="g_id_signin"
-          data-type="standard"
-          data-size="large"
-          data-theme="outline"
-          data-text="sign_in_with"
-          data-shape="rectangular"
-          data-logo_alignment="left"
-        ></div>
+        <h2>Sign in to access your data</h2>
         <p class="auth-note">
-          Sign in with your Google account to access Tasks. This app requires
-          Google Tasks API access.
+          Sign in with your Google account to view your Calendar Events and
+          Tasks.
         </p>
+        <button
+          id="authorize-button"
+          onclick="handleAuthClick()"
+          class="btn-primary"
+        >
+          Sign in with Google
+        </button>
       </div>
 
-      <!-- Add consent section for API access -->
-      <div id="consent-section" style="display: none">
-        <div class="consent-container">
-          <h2>One more step needed</h2>
-          <p>
-            To access your Google Tasks data, we need your permission to access
-            the Google Tasks API.
-          </p>
-          <div class="user-info">
-            <span id="consent-user-email"></span>
-          </div>
-          <button
-            id="grant-access-button"
-            onclick="requestAccessToken()"
-            class="btn-primary"
-          >
-            Grant Access to Google Tasks
-          </button>
-          <p class="consent-note">
-            This will open a popup window from Google. Please ensure popups are
-            allowed in your browser.
-          </p>
+      <!-- Loading indicator -->
+      <div id="loading-section" style="display: none">
+        <div class="loading-container">
+          <div class="loading-spinner"></div>
+          <p>Loading your data...</p>
         </div>
       </div>
 
