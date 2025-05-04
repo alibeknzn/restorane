@@ -1,17 +1,55 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>Google Tasks</title>
-  <script src="https://apis.google.com/js/api.js"></script>
-</head>
-<body>
-  <h1>📋 Задачи Google Tasks</h1>
-  <button onclick="handleAuthClick()">ENTER</button>
-  <ul id="task-list"></ul>
-  <button onclick="handleAuthClick()">Войти с Google</button>
-  <ul id="task-list"></ul>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Google Calendar & Tasks</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Google Calendar & Tasks</h1>
 
-  <script src="script.js"></script>
-</body>
+      <div id="auth-section">
+        <button
+          id="authorize-button"
+          onclick="handleAuthClick()"
+          class="btn-primary"
+        >
+          Sign In with Google
+        </button>
+      </div>
+
+      <div id="content-section" style="display: none">
+        <div class="tab-navbar">
+          <div class="tabs">
+            <button class="tab" onclick="switchTab('calendar')">
+              Calendar Events
+            </button>
+            <button class="tab active" onclick="switchTab('tasks')">
+              Tasks
+            </button>
+          </div>
+          <div class="profile-section">
+            <span id="user-email"></span>
+            <button onclick="handleSignoutClick()" class="btn-secondary">
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        <div id="calendar-tab" class="tab-content" style="display: none">
+          <h2>Upcoming Events</h2>
+          <div id="events-list"></div>
+        </div>
+
+        <div id="tasks-tab" class="tab-content">
+          <h2>Tasks</h2>
+          <ul id="task-list"></ul>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
 </html>
