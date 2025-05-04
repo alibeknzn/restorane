@@ -38,6 +38,14 @@ body::before {
   backdrop-filter: blur(5px);
 }
 
+/* When not in login mode, adjust the container for better content display */
+.container:not(.container-login) {
+  width: 90%;
+  max-width: 1000px;
+  margin: 40px auto;
+  padding: 30px 0 0 0;
+}
+
 /* Decorative elements for the Sham School theme */
 .container::before {
   content: '';
@@ -66,9 +74,14 @@ body::before {
 }
 
 h1 {
-  font-size: 28px;
-  margin-bottom: 20px;
+  font-size: 32px;
+  margin-bottom: 30px;
   text-align: center;
+  color: #333;
+  font-weight: 700;
+  padding: 0 30px;
+  position: relative;
+  z-index: 1;
 }
 
 h2 {
@@ -155,15 +168,18 @@ body.dark-mode .view-switch .active {
   background: #4a90e2;
   color: white;
 }
+
 .tab-navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: white;
   padding: 12px 24px;
-  border-radius: 12px;
+  border-radius: 12px 12px 0 0;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
+  margin-bottom: 0;
+  position: relative;
+  z-index: 2;
 }
 
 .tabs {
@@ -176,18 +192,23 @@ body.dark-mode .view-switch .active {
   border: none;
   font-family: 'Montserrat', sans-serif;
   font-size: 16px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: border-color 0.3s;
+  transition: all 0.2s ease;
+  color: #666;
+  position: relative;
+  font-weight: 500;
 }
 
 .tab:hover {
-  border-color: #ccc;
+  background-color: rgba(0, 101, 169, 0.08);
+  color: #0065a9;
 }
 
 .tab.active {
-  border-color: #2962ff; /* синий акцент */
+  background-color: rgba(0, 101, 169, 0.1);
+  color: #0065a9;
   font-weight: 600;
 }
 
@@ -315,18 +336,21 @@ body.dark-mode .view-switch .active {
 }
 
 .btn-secondary {
-  background-color: #f1f3f4;
-  color: #5f6368;
-  border: none;
+  background-color: rgba(255, 255, 255, 0.8);
+  color: #0065a9;
+  border: 1px solid rgba(0, 101, 169, 0.2);
   padding: 8px 16px;
   font-size: 14px;
-  border-radius: 4px;
+  border-radius: 20px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .btn-secondary:hover {
-  background-color: #e8eaed;
+  background-color: #0065a9;
+  color: white;
+  border-color: #0065a9;
 }
 
 /* Profile Section */
@@ -334,11 +358,15 @@ body.dark-mode .view-switch .active {
   display: flex;
   align-items: center;
   gap: 16px;
+  background: rgba(0, 101, 169, 0.05);
+  padding: 8px 16px;
+  border-radius: 30px;
 }
 
 #user-email {
   font-size: 14px;
-  color: #5f6368;
+  color: #0065a9;
+  font-weight: 500;
 }
 
 /* Events Display */
@@ -480,11 +508,11 @@ body.dark-mode .view-switch .active {
 
 .task-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid #e8eaed;
   transition: background-color 0.2s;
+  gap: 12px;
 }
 
 .task-item:hover {
@@ -664,4 +692,71 @@ body.dark-mode .view-switch .active {
   align-items: center;
   box-shadow: none;
   position: relative;
+}
+
+/* Tab content area styling */
+.tab-content {
+  background: white;
+  padding: 30px;
+  border-radius: 0 0 12px 12px;
+  min-height: 300px;
+}
+
+/* Calendar tab specific styling */
+#calendar-tab h2,
+#tasks-tab h2 {
+  color: #0065a9;
+  font-size: 24px;
+  margin-bottom: 25px;
+  position: relative;
+  display: inline-block;
+}
+
+#calendar-tab h2::after,
+#tasks-tab h2::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: linear-gradient(to right, #0065a9, #ffc107);
+  border-radius: 3px;
+}
+
+/* Task styling enhancements */
+.add-task-container {
+  margin-bottom: 20px;
+}
+
+.add-task-btn {
+  background-color: #0065a9;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.add-task-btn::before {
+  content: '+';
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.add-task-btn:hover {
+  background-color: #005490;
+  transform: translateY(-2px);
+}
+
+.task-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #0065a9;
 }
